@@ -8,7 +8,7 @@ function draw_buildings(map)
   for i=1:length(map.buildings_north)
       [vertices_temp,faces_temp,patch_colors_temp] = building_vert_face(...
           map.buildings_north(i), map.buildings_east(i),...
-          map.building_width, map.buildings_heights(i));
+          map.buildings_width(i), map.buildings_heights(i));
       vertices = [vertices; vertices_temp];
       faces_temp = faces_temp + count;
       faces = [faces; faces_temp];

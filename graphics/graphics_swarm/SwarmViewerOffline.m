@@ -17,10 +17,11 @@ classdef SwarmViewerOffline < handle
     
     methods
         %%%%%%%%%% Constructor %%%%%%%%%%%%
-        function self = SwarmViewerOffline(output_rate, CENTER_VIEW_ON_SWARM, dt, swarm, map)
+        function self = SwarmViewerOffline(output_rate, CENTER_VIEW_ON_SWARM, dt, swarm, map, p_swarm)
             
             wake_length = 300;
             pos_ned_history = swarm.get_pos_ned_history();
+            pos_ned_history = pos_ned_history(2:end, :);
             
             % Instance
             self.plot_initialized = 0;
@@ -36,7 +37,7 @@ classdef SwarmViewerOffline < handle
             for step = 1:nb_steps
                 pos_current = pos_ned_history(step, :);
                 time = dt * step;
-                self.update(swarm, time, pos_current, map, step);
+                self.update(swarm, time, pos_current, map, p_swarm, step);
             end
             
             % Close
@@ -45,7 +46,7 @@ classdef SwarmViewerOffline < handle
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        function self = update(self, swarm, time, pos_current, map, step)
+        function self = update(self, swarm, time, pos_current, map, p_swarm, step)
             
             if (time-self.time_of_last_frame) >= self.output_rate
                 self.time_of_last_frame = time;
@@ -60,14 +61,27 @@ classdef SwarmViewerOffline < handle
                         'NumberTitle','off', ...
                         'position', [x0, y0, width, height]); clf;
                     grid on;
+                    axis equal
                     
                     if map.ACTIVE_ENVIRONMENT
                         if strcmp(map.building_shape, 'parallelepiped')
                             draw_buildings(map);
                         elseif strcmp(map.building_shape, 'cylinder')
-                            self.figure_handle = draw_cylinders(self.figure_handle, map);
+                            self.figure_handle = draw_obstacles(self.figure_handle, map, p_swarm);
                         end
                     end
+
+                    % Set map axes limits and equal scaling
+                    map_width = map.width;
+                    axes_lim = [-map_width/5 + map.bl_corner_east, ... % x_min
+                        map_width + map_width/5 + map.bl_corner_east, ... % x_max
+                        -map_width/4 + map.bl_corner_north, ... % y_min
+                        map_width + map_width/4 + map.bl_corner_north, ... % y_max
+                        0, ... % z_min
+                        1.2*map.max_height]; % z_max
+                    axis equal;
+                    axis(axes_lim);
+                    view(0,90);
                     
                     colours = swarm.get_colors();
                     size_agents = repmat(30, swarm.nb_agents, 1); % size_agents is size of dot drawn in scatter3.
@@ -104,7 +118,6 @@ classdef SwarmViewerOffline < handle
                     xlabel('Y position [m]');
                     ylabel('X position [m]');
                     zlabel('Z position [m]');
-                    axis square;
                     grid on;
                     hold on;                   
                     self.plot_initialized = 1;
@@ -127,7 +140,6 @@ classdef SwarmViewerOffline < handle
                     xlabel('Y position [m]');
                     ylabel('X position [m]');
                     zlabel('Z position [m]');
-                    axis square;
                     grid on;
                     hold on;
                     

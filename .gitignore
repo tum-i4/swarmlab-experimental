@@ -40,5 +40,13 @@ octave-workspace
 *.slx.r2017a
 *.slxc
 
+# IDEs
+.vscode/
+
 # Custom folder for results
 results*/*
+
+# Examples
+/examples/*
+!/examples/examples_course/
+!/examples/project_scenario/

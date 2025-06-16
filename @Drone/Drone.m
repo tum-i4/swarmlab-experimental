@@ -204,6 +204,19 @@ classdef Drone < handle
         
         use_estimation = false
 
+        % Operating States
+        state_on = true
+        state_failsafe = false
+
+        % Parameters related to swarm control calculations
+        swarm_in_calcs = false      % flag to include drone in swarm calcs
+        % The following are assigned from p_swarm in swarm.add_drone if 
+        % drone is in swarm calculations:
+        swarm_control               % 'goal' or 'migration'
+        v_ref                       % Scalar - speed [m/s] 
+        u_ref                       % 3x1 unit vector of direction
+        x_goal                      % 3x1 NED coordinates of goal
+
     end
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -570,16 +583,26 @@ classdef Drone < handle
 
             x_new = x_ode(end, :);
             self.pos_ned = x_new(1:3)';
-            if self.pos_ned_history == [NaN, NaN, NaN]
-                self.pos_ned_history = self.pos_ned;
-            else
-                self.pos_ned_history = [self.pos_ned_history; self.pos_ned'];
-            end
             self.vel_xyz = x_new(4:6)';
             self.attitude = x_new(7:9)';
             self.rates = x_new(10:12)';
 
             self.update_path_length();
+			
+            % Update pos_ned_history
+            if isempty(self.pos_ned_history)
+                self.pos_ned_history = self.pos_ned';
+            else
+                self.pos_ned_history = [self.pos_ned_history; self.pos_ned'];
+            end
+
+            % Update vel_xyz_history
+            if isempty(self.vel_xyz_history)
+                self.vel_xyz_history = self.vel_xyz';
+            else
+                self.vel_xyz_history = [self.vel_xyz_history; self.vel_xyz'];
+            end
+			
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

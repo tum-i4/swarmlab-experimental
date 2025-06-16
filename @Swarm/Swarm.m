@@ -34,9 +34,34 @@ classdef Swarm < handle
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        function add_drone(self, drone_type, p_drone, p_battery, p_sim, p_physics, map)
+        function add_drone(self, drone_type, p_drone, p_battery, p_sim, p_physics, map, varargin)
+            % Varargin is used for backwards-compatibility with original
+            % code.
+            
+            % Track the number of drones in the swarm
             self.nb_agents = self.nb_agents + 1;
+
+            % Initialize object
             drone = Drone(drone_type, p_drone, p_battery, p_sim, p_physics, map);
+            
+            % Swarm config: show that drone should be in swarm calcs
+            drone.swarm_in_calcs = true;
+
+            % Swarm config: copy over swarm control parameters
+            if ~isempty(varargin)
+                p_swarm = varargin{1};
+                if p_swarm.is_active_migration == true
+                    drone.swarm_control = 'migration';
+                    drone.v_ref = p_swarm.v_ref;
+                    drone.u_ref = p_swarm.u_ref;
+                elseif p_swarm.is_active_goal == true
+                    drone.swarm_control = 'goal';
+                    drone.v_ref = p_swarm.v_ref;
+                    drone.x_goal = p_swarm.x_goal;
+                end
+            end
+
+            % Add drone to list of drones in swarm
             self.drones = [self.drones; drone];     
         end
         
@@ -285,6 +310,31 @@ classdef Swarm < handle
             vel_xyz_history = [];
             for i = 1:self.nb_agents
                 vel_xyz_history(:, (3 * (i - 1) + 1) : (3 * (i - 1) + 3)) = self.drones(i).vel_xyz_history;
+            end
+
+        end
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function bool_vec = get_swarm_in_calcs(self)
+            % Return bool vector of whether agents should be included in
+            % swarm calculations (size 1 x nb_agents)
+
+            bool_vec = false(1, self.nb_agents);
+
+            for i = 1:self.nb_agents
+                bool_vec(i) = self.drones(i).swarm_in_calcs;
+            end
+
+        end
+
+        function bool_vec = get_swarm_in_failsafe(self)
+            % Return bool vector of whether agents are currently in
+            % failsafe mode
+
+            bool_vec = false(1, self.nb_agents);
+
+            for i = 1:self.nb_agents
+                bool_vec(i) = self.drones(i).state_failsafe;
             end
 
         end

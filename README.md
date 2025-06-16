@@ -1,3 +1,38 @@
+## SwarmLab derivative project [WIP]
+
+This project is built on the original SwarmLab by Soria et al., found here: https://github.com/lis-epfl/swarmlab ([commit 3574ded](https://github.com/lis-epfl/swarmlab/commit/3574deddd2e4fdcc5696d08f93d6e888f45c8ecc)). Code has been refactored and new code has been added in order to conduct experiments, such as those appearing in the following publication:
+```
+@INPROCEEDINGS{10588639,
+  author={Marson, David K. and Deldar, Diana and Pretschner, Alexander},
+  booktitle={2024 IEEE Intelligent Vehicles Symposium (IV)}, 
+  title={System-Level Test Case Generation and Execution for Distributed Cooperative Unmanned Aerial Systems}, 
+  year={2024},
+  volume={},
+  number={},
+  pages={1060-1067},
+  keywords={Systematics;System verification;Intelligent vehicles;Search methods;Cyber-physical systems;Autonomous aerial vehicles;Test pattern generators},
+  doi={10.1109/IV55156.2024.10588639}}
+```
+With this repository, the intention is to provide snapshots of modifications and augmentations made to the original SwarmLab as time goes on. A non-exhaustive summary is provided below.
+
+### Additions
+* New projects: `examples/examples_course` and `examples/project_scenario`.
+* `utils` with utility functions, e.g., to calculate separation distances.
+* `wrapper` with wrapper functions that can be used to configure and execute a set of related simulation runs.
+* Tests: end-to-end tests; however, comprehensiveness and coverage needs to be improved.
+* New obstacle type: rectangular "boxes" as obstacles; NOTE that this is just the result of some brainstorming and many assumptions were made about what block properties a UAV can "perceive" and how it would react. `@Swarm/compute_vel_vasarhelyi.m` should be examined for details.
+
+### Changes
+* Refactored: `@Swarm/compute_vel_vasarhelyi.m` such that many calculations have been organized into subfunctions.
+* Bug fix: updates to handle the case where the "swarm" consists of only one agent.
+
+### Original code that may now be broken
+* GUI-related code, e.g., `examples/main_GUI.m`.
+* Original tests.
+
+### Additional Requirements
+* In addition to baseline MATLAB and the Statistics and Machine Learning Toolbox, the Parallel Computing Toolbox is required to run any parallel processes (but this is an extension and is not necessary to run baseline scenarios).
+
 # SwarmLab
 <p align="center"><img src="https://github.com/lis-epfl/swarmlab/blob/master/docs/images/SwarmLab.svg" alt="Logo" height="200"></p>
  

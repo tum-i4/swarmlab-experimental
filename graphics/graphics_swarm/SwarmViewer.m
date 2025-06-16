@@ -25,7 +25,7 @@ classdef SwarmViewer < handle
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        function self = update(self, time, swarm, map)
+        function self = update(self, time, swarm, map, p_swarm)
             
             if (time-self.time_of_last_frame) >= self.output_rate - 1e-6
                 self.time_of_last_frame = time;
@@ -45,9 +45,21 @@ classdef SwarmViewer < handle
                         if strcmp(map.building_shape, 'parallelepiped')
                             draw_buildings(map);
                         elseif strcmp(map.building_shape, 'cylinder')
-                            self.figure_handle = draw_cylinders(self.figure_handle, map);
+                            self.figure_handle = draw_obstacles(self.figure_handle, map, p_swarm);
                         end
                     end
+
+                    % Set map axes limits and equal scaling
+                    map_width = map.width;
+                    axes_lim = [-map_width/5 + map.bl_corner_east, ... % x_min
+                        map_width + map_width/5 + map.bl_corner_east, ... % x_max
+                        -map_width/4 + map.bl_corner_north, ... % y_min
+                        map_width + map_width/4 + map.bl_corner_north, ... % y_max
+                        0, ... % z_min
+                        1.2*map.max_height]; % z_max
+                    axis equal;
+                    axis(axes_lim);
+                    view(0,90);
                     
                     if self.viewer_type == "drone" % Draw drones' body
                         

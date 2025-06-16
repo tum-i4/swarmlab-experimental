@@ -21,7 +21,7 @@ classdef VideoWriterWithRate < handle
     methods
         %%%%%%%%% Constructor %%%%%%%%%%%
         function self = VideoWriterWithRate(video_path, output_rate)
-            self.video = VideoWriter(video_path,'Motion JPEG AVI');
+            self.video = VideoWriter(video_path,'MPEG-4');
             self.video.Quality = 95;
             open(self.video)
             self.output_rate = output_rate;
