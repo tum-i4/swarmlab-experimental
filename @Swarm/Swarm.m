@@ -34,7 +34,7 @@ classdef Swarm < handle
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        function add_drone(self, drone_type, p_drone, p_battery, p_sim, p_physics, map, varargin)
+        function add_drone(self, drone_type, p_drone, p_battery, p_sim, p_physics, map, p_swarm)
             % Varargin is used for backwards-compatibility with original
             % code.
             
@@ -48,17 +48,14 @@ classdef Swarm < handle
             drone.swarm_in_calcs = true;
 
             % Swarm config: copy over swarm control parameters
-            if ~isempty(varargin)
-                p_swarm = varargin{1};
-                if p_swarm.is_active_migration == true
-                    drone.swarm_control = 'migration';
-                    drone.v_ref = p_swarm.v_ref;
-                    drone.u_ref = p_swarm.u_ref;
-                elseif p_swarm.is_active_goal == true
-                    drone.swarm_control = 'goal';
-                    drone.v_ref = p_swarm.v_ref;
-                    drone.x_goal = p_swarm.x_goal;
-                end
+            if p_swarm.is_active_migration == true
+                drone.swarm_control = 'migration';
+                drone.v_ref = p_swarm.v_ref;
+                drone.u_ref = p_swarm.u_ref;
+            elseif p_swarm.is_active_goal == true
+                drone.swarm_control = 'goal';
+                drone.v_ref = p_swarm.v_ref;
+                drone.x_goal = p_swarm.x_goal;
             end
 
             % Add drone to list of drones in swarm
@@ -228,17 +225,25 @@ classdef Swarm < handle
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function [vel_commands, collisions] = update_command(self, p_swarm, r_coll, dt)
 
-            % Select the swarm algorithm and call the associated update
-            if self.algorithm == "vasarhelyi"
-                [vel_commands, collisions] = self.compute_vel_vasarhelyi(p_swarm, r_coll, dt);
-            elseif self.algorithm == "olfati_saber"
-                [vel_commands, collisions] = self.compute_vel_olfati_saber(p_swarm, r_coll, dt);
+            switch lower(self.algorithm)
+                case "vasarhelyi"
+                    [vel_commands, collisions] = self.compute_vel_vasarhelyi(p_swarm, r_coll, dt);
+                case "olfati_saber"
+                    [vel_commands, collisions] = self.compute_vel_olfati_saber(p_swarm, r_coll, dt);
+                case "vasarhelyi_original"
+                    [vel_commands, collisions] = self.compute_vel_vasarhelyi_original(p_swarm, r_coll, dt);
+                otherwise
+                    error('Requested swarm algorithm has not been added to @Swarm: %s', self.algorithm)
             end
+
+            % Save collision history
             if isempty(self.collisions_history)
                 self.collisions_history = collisions;
             else
                 self.collisions_history = [self.collisions_history; collisions];
             end
+
+            % Save velocity commands to drones
             self.set_vel_commands(vel_commands);
         end
 

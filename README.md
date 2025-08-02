@@ -17,10 +17,10 @@ With this repository, the intention is to provide snapshots of modifications and
 
 ### Additions
 * New projects: `examples/examples_course` and `examples/project_scenario`.
-* `utils` with utility functions, e.g., to calculate separation distances.
-* `wrapper` with wrapper functions that can be used to configure and execute a set of related simulation runs.
-* Tests: end-to-end tests; however, comprehensiveness and coverage needs to be improved.
-* New obstacle type: rectangular "boxes" as obstacles; NOTE that this is just the result of some brainstorming and many assumptions were made about what block properties a UAV can "perceive" and how it would react. `@Swarm/compute_vel_vasarhelyi.m` should be examined for details.
+* Directory `utils` with utility functions, e.g., to calculate separation distances.
+* Directory `wrapper` with wrapper functions that can be used to configure and execute a set of related simulation runs.
+* Tests in `RunSetOfTests.m` in directory `tests`: end-to-end tests; however, comprehensiveness and coverage needs to be improved. Run these using the MATLAB testing framework.
+* New obstacle type: rectangular "boxes" as obstacles; NOTE that this is just the result of some brainstorming and many assumptions were made about what block properties a UAV can "perceive", `@Swarm/compute_vel_vasarhelyi.m` should be examined for details.
 
 ### Changes
 * Refactored: `@Swarm/compute_vel_vasarhelyi.m` such that many calculations have been organized into subfunctions.
@@ -29,9 +29,6 @@ With this repository, the intention is to provide snapshots of modifications and
 ### Original code that may now be broken
 * GUI-related code, e.g., `examples/main_GUI.m`.
 * Original tests.
-
-### Additional Requirements
-* In addition to baseline MATLAB and the Statistics and Machine Learning Toolbox, the Parallel Computing Toolbox is required to run any parallel processes (but this is an extension and is not necessary to run baseline scenarios).
 
 # SwarmLab
 <p align="center"><img src="https://github.com/lis-epfl/swarmlab/blob/master/docs/images/SwarmLab.svg" alt="Logo" height="200"></p>

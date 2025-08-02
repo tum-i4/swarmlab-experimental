@@ -314,7 +314,7 @@ function [vel_obs, vel_wall, nb_obs_collisions, min_dist_obs] = compute_drone_en
     vel_wall = zeros(3, 1);
 
     % Arena walls repulsion effects
-    if (p_swarm.is_active_arena == true)
+    if isfield(p_swarm, 'is_active_arena') && (p_swarm.is_active_arena == true)
         unit = eye(3);
         %On each axis we have the two repulsions
         for axis = 1:3
@@ -342,7 +342,7 @@ function [vel_obs, vel_wall, nb_obs_collisions, min_dist_obs] = compute_drone_en
     end
 
     % Compute spherical obstacles effects
-    if (p_swarm.is_active_spheres == true)
+    if isfield(p_swarm, 'is_active_spheres') && (p_swarm.is_active_spheres == true)
 
         for obs = 1:p_swarm.n_spheres
             % Get obstacle center and radius
@@ -373,7 +373,7 @@ function [vel_obs, vel_wall, nb_obs_collisions, min_dist_obs] = compute_drone_en
     end
 
     % Compute cylindrical obstacles effects
-    if (p_swarm.is_active_cyl == true)
+    if isfield(p_swarm, 'is_active_cyl') && (p_swarm.is_active_cyl == true)
 
         for obs = 1:p_swarm.n_cyl
             % Get obstacle center and radius
@@ -404,7 +404,7 @@ function [vel_obs, vel_wall, nb_obs_collisions, min_dist_obs] = compute_drone_en
     end
 
     % Compute block obstacles effects
-    if (p_swarm.is_active_blocks == true)
+    if isfield(p_swarm, 'is_active_blocks') && (p_swarm.is_active_blocks == true)
 
         for obs = 1:size(p_swarm.blocks_limits, 2)
 
