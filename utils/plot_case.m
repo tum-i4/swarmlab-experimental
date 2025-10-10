@@ -5,6 +5,16 @@ function plot_case(pos_ned_history, p_swarm, map)
 % (note that after figure has been created, it can be manually rotated to
 % see 3D perspective)
 
+% results_dirname = strcat('../../../../safetytesting_collabuavs/', in_dir_name);
+% if ~exist(results_dirname, 'dir')
+%      mkdir(results_dirname);
+% end
+
+% To ensure backwards-compatibility
+if ~isfield(map, 'buildings_width')
+    map.buildings_width = repmat(map.building_width, size(map.buildings_north));
+end
+
 % Create figure - plot trajectories
 agents_color = []; % use default
 fontsize = 12; % use default

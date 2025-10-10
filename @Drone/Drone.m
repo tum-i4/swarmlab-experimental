@@ -123,12 +123,16 @@ classdef Drone < handle
         % State = [pos_ned; vel_xyz; attitude; rates]
         pos_ned     % pn, pe, pd
         vel_xyz     % vx, vy, vz
+        vel_ned     % converted from vel_xyz
         attitude    % phi, theta, psi
         rates       % p, q, r
         
         % State history
         pos_ned_history
         vel_xyz_history
+        vel_ned_history
+        collision_history
+        in_sim_history
 
         % Auxiliary variables
         prev_state
@@ -207,6 +211,8 @@ classdef Drone < handle
         % Operating States
         state_on = true
         state_failsafe = false
+        state_in_sim = true
+        collision = false
 
         % Parameters related to swarm control calculations
         swarm_in_calcs = false      % flag to include drone in swarm calcs
@@ -216,6 +222,8 @@ classdef Drone < handle
         v_ref                       % Scalar - speed [m/s] 
         u_ref                       % 3x1 unit vector of direction
         x_goal                      % 3x1 NED coordinates of goal
+        r_aware_agents = inf        % max radius of influence of other agents on this agent
+        r_aware_obs = inf           % max radius of awareness of obstacles
 
     end
 
@@ -246,11 +254,14 @@ classdef Drone < handle
 
             Drone.pos_ned = zeros(3, 1);
             Drone.vel_xyz = zeros(3, 1);
+            Drone.vel_ned = zeros(3, 1);
             Drone.attitude = zeros(3, 1);
             Drone.rates = zeros(3, 1);
             
             Drone.pos_ned_history = [];
             Drone.vel_xyz_history = [];
+            Drone.vel_ned_history = [];
+            Drone.collision_history = [];
             
             Drone.path_len = 0;
 
@@ -321,10 +332,42 @@ classdef Drone < handle
         function set_vel(self, velocity_xyz)
             % SET_VEL: Set the velocity of the drone
             self.vel_xyz = velocity_xyz;
+            self.vel_ned = Rb2i(self.attitude(1), self.attitude(2), ...
+                self.attitude(3)) * self.vel_xyz;
+
+            % Add to history
             if isempty(self.vel_xyz_history)
                 self.vel_xyz_history = self.vel_xyz';
+                self.vel_ned_history = self.vel_ned';
             else
                 self.vel_xyz_history = [self.vel_xyz_history; self.vel_xyz'];
+                self.vel_ned_history = [self.vel_ned_history; self.vel_ned'];
+            end
+        end
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function update_collision_history(self, collision_state)
+            % UPDATE_COLLISION_HISTORY: Update collision state and history
+            self.collision = collision_state;
+
+            % Add to history
+            if isempty(self.collision_history)
+                self.collision_history = self.collision;
+            else
+                self.collision_history = [self.collision_history; self.collision];
+            end
+        end
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function update_in_sim_history(self, state_in_sim)
+            % UPDATE_IN_SIM_HISTORY: Update in_sim state and history
+            self.state_in_sim = state_in_sim;
+
+            % Add to history
+            if isempty(self.in_sim_history)
+                self.in_sim_history = self.state_in_sim;
+            else
+                self.in_sim_history = [self.in_sim_history; self.state_in_sim];
             end
         end
 
@@ -355,11 +398,25 @@ classdef Drone < handle
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function update_state(self, wind, time)
             % UPDATE_STATE: Compute the new drone state
-            
+
+            % If the agent is no longer in the sim, freeze its position and
+            % skip the rest of the calculations.
+            if self.state_in_sim == false
+                
+                % Set position as same as current (this updates history)
+                self.set_pos(self.pos_ned)
+
+                % Update velocity (set to zero); this also updates history
+                self.set_vel([0; 0; 0]);
+
+                % Exit from method
+                return
+            end
+
             self.update_sensor_measurements();
             self.estimate_states(time);
             
-            % Choose the autopilot
+            % Otherwise, update state based on the autopilot
             if self.drone_type ~= "point_mass"
                 if self.drone_type == "fixed_wing"
                     temp3 = autopilot_wing(self, 0, time);
@@ -382,6 +439,7 @@ classdef Drone < handle
                 % inertial frame. Only usable with the velocity controller.
                 
                 self.vel_xyz = self.command(2:4);
+                self.vel_ned = self.vel_xyz;
                 self.pos_ned = self.pos_ned + self.vel_xyz * self.p_sim.dt;
                 self.attitude(3) = self.command(1); % to plot drone psi angle
                 
@@ -392,11 +450,13 @@ classdef Drone < handle
                     self.pos_ned_history = [self.pos_ned_history; self.pos_ned'];
                 end
                 
-                % Update vel_xyz_history
+                % Update vel_*_history
                 if isempty(self.vel_xyz_history)
                     self.vel_xyz_history = self.vel_xyz';
+                    self.vel_ned_history = self.vel_ned';
                 else
                     self.vel_xyz_history = [self.vel_xyz_history; self.vel_xyz'];
+                    self.vel_ned_history = [self.vel_ned_history; self.vel_ned'];
                 end
             end
             
@@ -588,6 +648,9 @@ classdef Drone < handle
             self.rates = x_new(10:12)';
 
             self.update_path_length();
+
+            self.vel_ned = Rb2i(self.attitude(1), self.attitude(2), ...
+                self.attitude(3)) * self.vel_xyz;
 			
             % Update pos_ned_history
             if isempty(self.pos_ned_history)
@@ -599,8 +662,10 @@ classdef Drone < handle
             % Update vel_xyz_history
             if isempty(self.vel_xyz_history)
                 self.vel_xyz_history = self.vel_xyz';
+                self.vel_ned_history = self.vel_ned';
             else
                 self.vel_xyz_history = [self.vel_xyz_history; self.vel_xyz'];
+                self.vel_ned_history = [self.vel_ned_history; self.vel_ned'];
             end
 			
         end

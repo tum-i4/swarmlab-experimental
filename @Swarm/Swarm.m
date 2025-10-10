@@ -57,6 +57,11 @@ classdef Swarm < handle
                 drone.v_ref = p_swarm.v_ref;
                 drone.x_goal = p_swarm.x_goal;
             end
+            if isfield(p_swarm, 'r')
+                % If defined for swarm, overwrite each agent's default
+                drone.r_aware_agents = p_swarm.r;  
+                drone.r_aware_obs = p_swarm.r;
+            end
 
             % Add drone to list of drones in swarm
             self.drones = [self.drones; drone];     
@@ -97,6 +102,15 @@ classdef Swarm < handle
         end
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function update_collision_history(self, collision_states)
+            % UPDATE_COLLISION_HISTORY: Update collision states and history for all drones
+            for i = 1:self.nb_agents
+                self.drones(i).update_collision_history(collision_states(i));
+            end
+
+        end
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function Pos_ned = get_pos_ned(self)
             % Return positions of the agent of the swarm in a matrix shape
             % of size 3 x nb_agents
@@ -128,13 +142,7 @@ classdef Swarm < handle
 
             for i = 1:self.nb_agents
                 drone = self.drones(i);
-
-                phi = drone.attitude(1);
-                theta = drone.attitude(2);
-                psi = drone.attitude(3);
-                Rbi = Rb2i(phi, theta, psi);
-
-                Vel_ned(:, i) = Rbi * drone.vel_xyz;
+                Vel_ned(:, i) = drone.vel_ned;
             end
 
         end
@@ -178,6 +186,7 @@ classdef Swarm < handle
 
             for i = 1:self.nb_agents
                 drone = self.drones(i);
+                drone.prev_command = drone.command;
                 drone.command(1) = 0;
                 drone.command(2:4) = commands(:, i);
             end
@@ -234,13 +243,6 @@ classdef Swarm < handle
                     [vel_commands, collisions] = self.compute_vel_vasarhelyi_original(p_swarm, r_coll, dt);
                 otherwise
                     error('Requested swarm algorithm has not been added to @Swarm: %s', self.algorithm)
-            end
-
-            % Save collision history
-            if isempty(self.collisions_history)
-                self.collisions_history = collisions;
-            else
-                self.collisions_history = [self.collisions_history; collisions];
             end
 
             % Save velocity commands to drones
@@ -320,6 +322,35 @@ classdef Swarm < handle
         end
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function vel_ned_history = get_vel_ned_history(self)
+            vel_ned_history = [];
+            for i = 1:self.nb_agents
+                vel_ned_history(:, (3 * (i - 1) + 1) : (3 * (i - 1) + 3)) = self.drones(i).vel_ned_history;
+            end
+
+        end
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function collision_history = get_collision_history(self)
+            collision_history = [];
+            for i = self.nb_agents:-1:1
+                collision_history(:, i) = self.drones(i).collision_history;
+            end
+            collision_history = logical(collision_history);
+
+        end
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function in_sim_history = get_in_sim_history(self)
+            in_sim_history = [];
+            for i = self.nb_agents:-1:1
+                in_sim_history(:, i) = self.drones(i).in_sim_history;
+            end
+            in_sim_history = logical(in_sim_history);
+
+        end
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function bool_vec = get_swarm_in_calcs(self)
             % Return bool vector of whether agents should be included in
             % swarm calculations (size 1 x nb_agents)
@@ -340,6 +371,30 @@ classdef Swarm < handle
 
             for i = 1:self.nb_agents
                 bool_vec(i) = self.drones(i).state_failsafe;
+            end
+
+        end
+
+        function bool_vec = get_swarm_in_sim(self)
+            % Return bool vector of whether agents are designated as being
+            % "in the simulation" (true = currently in the simulation)
+
+            bool_vec = false(1, self.nb_agents);
+
+            for i = 1:self.nb_agents
+                bool_vec(i) = self.drones(i).state_in_sim;
+            end
+
+        end
+
+        function bool_vec = get_swarm_in_collision(self)
+            % Return bool vector of whether agents are designated as being
+            % "in the simulation" (true = currently in the simulation)
+
+            bool_vec = false(1, self.nb_agents);
+
+            for i = 1:self.nb_agents
+                bool_vec(i) = self.drones(i).collision;
             end
 
         end

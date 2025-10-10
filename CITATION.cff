@@ -1,9 +1,41 @@
-@INPROCEEDINGS{9340854,
-  author={Soria, Enrica and Schiano, Fabrizio and Floreano, Dario},
-  booktitle={2020 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, 
-  title={SwarmLab: a Matlab Drone Swarm Simulator}, 
-  year={2020},
-  volume={},
-  number={},
-  pages={8005-8011},
-  doi={10.1109/IROS45743.2020.9340854}}
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "SwarmLab Experimental"
+version: 1.0.0
+authors:
+  - family-names: Marson
+    given-names: David
+    affiliation: "Technical University of Munich"
+date-released: "2025-10-10"
+repository-code: "https://github.com/d-marson/swarmlab-experimental"
+license: MIT
+
+references:
+  - type: software
+    title: "SwarmLab: a Matlab Drone Swarm Simulator"
+    authors:
+      - family-names: Soria
+        given-names: Enrica
+      - family-names: Schiano
+        given-names: Fabrizio
+      - family-names: Floreano
+        given-names: Dario
+    repository-code: "https://github.com/lis-epfl/swarmlab"
+    version: "[version you based your work on]"
+    license: MIT
+    
+  - type: conference-paper
+    title: "SwarmLab: a Matlab Drone Swarm Simulator"
+    authors:
+      - family-names: Soria
+        given-names: Enrica
+      - family-names: Schiano
+        given-names: Fabrizio
+      - family-names: Floreano
+        given-names: Dario
+    year: 2020
+    collection-title: "2020 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)"
+    start: 8005
+    end: 8011
+    doi: "10.1109/IROS45743.2020.9340854"
+	

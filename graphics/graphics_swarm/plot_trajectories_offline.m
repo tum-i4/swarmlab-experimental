@@ -2,6 +2,11 @@ function [fig] = plot_trajectories_offline(pos_history, N, ...
                 colors, fontsize, map, p_swarm)
 % plot_trajectpries_offline - Plot trajectories of the agents.
 
+
+% % For creating trajectory figures 1, 2 for paper (also see below)
+% pos_history = pos_history(1:10:end,:);
+
+
 x0 = 10; 
 y0 = 10; 
 width = 400;
@@ -37,6 +42,13 @@ for agent = 1:N
     if ~isempty(colors)
         plot3(pos_history(:,(agent-1)*3+2), pos_history(:,(agent-1)*3+1), ...
             - pos_history(:,(agent-1)*3+3), 'Color', colors(:,agent));
+        
+        % % For creating trajectory figures 1, 2 for paper (also see 
+        % % above)
+        % plot3(pos_history(:,(agent-1)*3+2), pos_history(:,(agent-1)*3+1), ...
+        %     - pos_history(:,(agent-1)*3+3), 'Color', colors(:,agent), ...
+        %     'LineWidth', 2);
+
     else
         plot3(pos_history(:,(agent-1)*3+2), pos_history(:,(agent-1)*3+1), ...
             - pos_history(:,(agent-1)*3+3));

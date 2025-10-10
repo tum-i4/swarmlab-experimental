@@ -96,7 +96,7 @@ time_vec = time_vec'; % make it a column vector
 % Outputs
 pos_ned_hist = swarm.get_pos_ned_history();
 pos_ned_hist = pos_ned_hist(2:end,:);
-vel_ned_hist = swarm.get_vel_xyz_history();
+vel_ned_hist = swarm.get_vel_ned_history();
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % results_dirname = '';

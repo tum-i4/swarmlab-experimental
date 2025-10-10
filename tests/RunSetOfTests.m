@@ -59,6 +59,15 @@ classdef RunSetOfTests < matlab.unittest.TestCase
                     point_mass_out_orig.(data_field{1}))
             end
 
+            % Plot for visual check
+            plot_case(point_mass_out_orig.pos_ned_history, ...
+                point_mass_out_orig.p_swarm, point_mass_out_orig.map);
+
+            % Also check if velocities in XYZ and NED are the same 
+            % (should be for point mass model)
+            testCase.verifyEqual(point_mass_out.vel_xyz_history, ...
+                point_mass_out.vel_ned_history, 'AbsTol', 1e-10)
+
             % Next run the the quadcopter version
             quadcopter_out = test_example_vasarhelyi('vasarhelyi', 'quadcopter');
             quadcopter_out_orig = test_example_vasarhelyi('vasarhelyi_original', 'quadcopter');
@@ -68,6 +77,19 @@ classdef RunSetOfTests < matlab.unittest.TestCase
                 testCase.verifyEqual(quadcopter_out.(data_field{1}), ...
                     quadcopter_out_orig.(data_field{1}))
             end
+
+            % Plot for visual check
+            plot_case(quadcopter_out_orig.pos_ned_history, ...
+                quadcopter_out_orig.p_swarm, quadcopter_out_orig.map);
+
+            % Check if speeds calculated from velocities from different
+            % reference frames are equal.
+            num_agents = size(quadcopter_out.vel_xyz_history, 2) / 5;
+            for i = 1:num_agents
+                speed_ned(:,i) = vecnorm(quadcopter_out.vel_ned_history(:,(3*(i-1)+1):(3*(i-1)+3)),2,2);
+                speed_xyz(:,i) = vecnorm(quadcopter_out.vel_xyz_history(:,(3*(i-1)+1):(3*(i-1)+3)),2,2);
+            end
+            testCase.verifyEqual(speed_xyz, speed_ned, 'AbsTol', 1e-10)
 
         end
 

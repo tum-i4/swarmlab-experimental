@@ -119,7 +119,7 @@ if p_swarm.is_active_cyl
 end
 
 % Block obstacles
-if p_swarm.is_active_blocks
+if isfield(p_swarm, 'is_active_blocks') && p_swarm.is_active_blocks
 
     % Iterate through blocks
     for r1 = 1:p_swarm.n_blocks

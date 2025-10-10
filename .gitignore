@@ -45,8 +45,3 @@ octave-workspace
 
 # Custom folder for results
 results*/*
-
-# Examples
-/examples/*
-!/examples/examples_course/
-!/examples/project_scenario/

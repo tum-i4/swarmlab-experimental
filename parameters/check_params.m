@@ -20,12 +20,18 @@ for i = length(check_fields)
     end
 end
 
-% If cylinders active, check that vector of widths exists; otherwise assume
-% that "building_width" exists and get it 
+% For cylinders specified in map
 if p_swarm.is_active_cyl
-
+    
+    % If cylinders active, check that vector of widths exists; otherwise assume
+    % that "building_width" exists and get it
     if ~isfield(map, 'buildings_width')
         map.buildings_width = repmat(map.building_width, size(map.buildings_north));
+    end
+
+    % Add field specifying number of cylinders
+    if ~isfield(map, 'n_cyl')
+        map.n_cyl = length(map.buildings_north);
     end
 
 end

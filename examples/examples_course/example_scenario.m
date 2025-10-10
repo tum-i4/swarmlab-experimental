@@ -90,6 +90,8 @@ end
 tic % start timer
 disp('Type CTRL-C to exit');
 
+profile on
+
 for time = p_sim.start_time:p_sim.dt:p_sim.end_time
 
     % Compute velocity commands from swarming algorithm
@@ -111,7 +113,12 @@ for time = p_sim.start_time:p_sim.dt:p_sim.end_time
     end
 
 end
+
+profile off
+
 toc %stop timer, display
+
+profile viewer
 
 %% Analyse states and save
 

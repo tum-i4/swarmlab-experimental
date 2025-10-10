@@ -157,7 +157,7 @@ for k = 1:t_steps
             % Count possible collision opportunities
             nb_possible_coll = nb_possible_coll + nb_agents;
         end
-        if p_swarm.is_active_blocks
+        if isfield(p_swarm, 'is_active_blocks') && p_swarm.is_active_blocks
             for i = 1:size(pos_k, 2)
                 for j = 1:p_swarm.n_blocks
 

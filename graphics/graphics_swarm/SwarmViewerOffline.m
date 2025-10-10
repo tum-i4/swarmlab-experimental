@@ -30,16 +30,28 @@ classdef SwarmViewerOffline < handle
             self.center_view_on_swarm = CENTER_VIEW_ON_SWARM;
             self.scatter_handle = [];
             self.lines_handle = [];
-            self.wakes = repmat(pos_ned_history(1,:),wake_length,1);
-            
+            self.wakes = repmat(pos_ned_history(1,:),wake_length,1);           
+
             % Update
             [nb_steps,~] = size(pos_ned_history);
             for step = 1:nb_steps
                 pos_current = pos_ned_history(step, :);
                 time = dt * step;
                 self.update(swarm, time, pos_current, map, p_swarm, step);
+
+                % % Videomaker code 
+                % if step == 1
+                %     v = VideoWriter('test', 'MPEG-4');
+                %     v.Quality = 100;
+                %     open(v)
+                % end
+                % frame = getframe(gcf);
+                % writeVideo(v, frame);
+
             end
             
+            % close(v)
+
             % Close
             close(self.figure_handle);
             
@@ -191,10 +203,8 @@ classdef SwarmViewerOffline < handle
         end 
         
         function signal_collision(self, swarm, step)
-            % Signals when drone-obstacle collisions take place. 
-            %n = length(swarm.collisions_history);
-            compare = 0;
-            if ~isequal(swarm.collisions_history(step, 2), compare)
+            % Signals when a collision takes place. 
+            if ~isempty(swarm.collisions_history) && any(swarm.collisions_history(step, :))
                 self.figure_handle.Color = [1 0.8 0.8]; % when a collision takes place, set background to red
             end
             

@@ -18,6 +18,21 @@ function [vel_command, collisions] = compute_vel_vasarhelyi(self, p_swarm, r_age
     %   collisions: [nb_agent_collisions nb_obs_collisions min_dist_obs]
     %
 
+    % If separate parameters are not defined for arena wall avoidance, use
+    % the same parameters as for obstacle avoidance.
+    if ~isfield(p_swarm, 'r0_shill_arena')
+        p_swarm.r0_shill_arena = p_swarm.r0_shill;
+    end
+    if ~isfield(p_swarm, 'v_shill_arena')
+        p_swarm.v_shill_arena = p_swarm.v_shill;
+    end
+    if ~isfield(p_swarm, 'p_shill_arena')
+        p_swarm.p_shill_arena = p_swarm.p_shill;
+    end
+    if ~isfield(p_swarm, 'a_shill_arena')
+        p_swarm.a_shill_arena = p_swarm.a_shill;
+    end
+
     % Initialize variables
     pos = self.get_pos_ned();           % [3xn] matrix of positions
     vel = self.get_vel_ned();           % [3xn] matrix of velocities
@@ -36,42 +51,61 @@ function [vel_command, collisions] = compute_vel_vasarhelyi(self, p_swarm, r_age
     min_dist_obs = inf;                 % (Unclear) track how close drones get to obstacles
 
     % Check which drones are in swarm calcs
-    in_calcs = self.get_swarm_in_calcs();
+    in_swarm_calcs = self.get_swarm_in_calcs();
 
-    % Check which drones are in failsafe state (note: this does not
+    % Check which drones are in "failsafe" state (note: this does not
     % necessarily mean that the other drones will exclude this one from 
-    % swarm calcs).
+    % swarm calcs). Basically relies solely on user-specified goal.
     % Failsafe currently defined to mean drone will ignore all interactions
-    % except for goal.
+    % except for goal, but other drones still notice it if still
+    % in_swarm_calcs.
     in_failsafe = self.get_swarm_in_failsafe();
 
+    % Check which drones are in the simulation; some may be removed from
+    % the simulation during the simulation run and should be ignored in
+    % swarm interaction calcs, including collision checks (true = currently 
+    % in sim).
+    in_sim = self.get_swarm_in_sim();
 
     % Iterate through each agent and compute velocity command
     for agent = 1:nb_agents
         
+        % If agent is not in sim, continue to next agent
+        if ~in_sim(agent)
+            continue
+        end
+
         % If agent is calculating own swarm calcs
-        if in_calcs(agent) && ~in_failsafe(agent)
+        if in_swarm_calcs(agent) && ~in_failsafe(agent)
+
+            %%% Get current state of participants in swarm calculations %%%
 
             % Indicies of all OTHER agents that are also in swarm calcs
-            others_in_calcs = in_calcs;
-            others_in_calcs(agent) = false; % take self out of vector
+            others_in_swarm_calcs = in_swarm_calcs & in_sim;
+            others_in_swarm_calcs(agent) = false; % take self out of vector
 
-            % Indicies of all OTHER agents NOT in swarm calcs
-            others_out_calcs = ~others_in_calcs;
-            others_out_calcs(agent) = false; % take self out of vector
+            % Indicies of all OTHER agents NOT in swarm calcs but still in
+            % simulation.
+            others_in_sim = ~others_in_swarm_calcs & in_sim;
+            others_in_sim(agent) = false; % take self out of vector
+
+            %%% %%%
 
             % Intra-Swarm Interactions
             [vel_rep(:, agent), vel_fric(:, agent), nb_agent_collisions] = compute_intra_swarm_interactions(...
-                pos(:, agent), pos(:, others_in_calcs), vel(:, agent), vel(:, others_in_calcs), ...
-                p_swarm, r_agent, nb_agent_collisions);
+                pos(:, agent), pos(:, others_in_swarm_calcs), vel(:, agent), vel(:, others_in_swarm_calcs), ...
+                p_swarm, r_agent, self.drones(agent).r_aware_agents, nb_agent_collisions);
 
             % Drone-Environment Interactions
             [vel_obs(:, agent), vel_wall(:, agent), nb_obs_collisions, min_dist_obs] = compute_drone_environment_interactions(...
-                pos(:, agent), vel(:, agent), p_swarm, r_agent, nb_obs_collisions, min_dist_obs);
+                pos(:, agent), vel(:, agent), p_swarm, ...
+                r_agent, self.drones(agent).r_aware_obs, ...
+                nb_obs_collisions, min_dist_obs);
 
             % Drone Repulsion-Only Interactions - any drones NOT in swarm
             [vel_rep_only(:, agent), nb_agent_collisions] = compute_repulsion_only_interactions(...
-                pos(:, agent), pos(:, others_out_calcs), p_swarm, r_agent, nb_agent_collisions);
+                pos(:, agent), pos(:, others_in_sim), p_swarm, ...
+                r_agent, self.drones(agent).r_aware_agents, nb_agent_collisions);
 
             % Active Goal repulsion to prevent convergence
             if p_swarm.is_active_goal == true
@@ -87,24 +121,31 @@ function [vel_command, collisions] = compute_vel_vasarhelyi(self, p_swarm, r_age
             vel_command(:, agent) = compute_velocity_goal(vel_command(:, agent), pos(:, agent), vel(:, agent), p_swarm, ...
                 self.drones(agent).v_ref, self.drones(agent).u_ref, self.drones(agent).x_goal);
 
-        end
-        
-        % If agent is not in swarm calcs
-        if ~in_calcs(agent) || in_failsafe(agent)
 
-            % Easier access to drone properties
+        % If agent is not in swarm calcs
+        elseif ~in_swarm_calcs(agent) || in_failsafe(agent)
+
+            % Indicies of all OTHER agents in simulation.
+            others_in_sim = in_sim;
+            others_in_sim(agent) = false; % take self out of vector
+
+            % Get properties of current agent
             goal_calc_type = self.drones(agent).swarm_control;  % How out-of-swarm drone should be controlled to own goal
 
             % Drone-Environment Interactions
             [vel_obs(:, agent), vel_wall(:, agent), nb_obs_collisions, min_dist_obs] = compute_drone_environment_interactions(...
-                pos(:, agent), vel(:, agent), p_swarm, r_agent, nb_obs_collisions, min_dist_obs);
+                pos(:, agent), vel(:, agent), p_swarm, ...
+                r_agent, self.drones(agent).r_aware_obs, ...
+                nb_obs_collisions, min_dist_obs);
 
-            % Drone Repulsion-Only Interactions (against all other drones)
+            % Drone Repulsion-Only Interactions (against all other drones 
+            % in the simulation)
             [vel_rep_only(:, agent), nb_agent_collisions] = compute_repulsion_only_interactions(...
-                pos(:, agent), pos(:, 1:end ~= agent), p_swarm, r_agent, nb_agent_collisions);
+                pos(:, agent), pos(:, others_in_sim), p_swarm, ...
+                r_agent, self.drones(agent).r_aware_agents, nb_agent_collisions);
 
-            % ONLY IF agent is in failsafe mode: Skip interactions with 
-            % (1) other drones and (2) with environment
+            % ONLY IF agent is in failsafe mode: set interactions with 
+            % (1) other drones and (2) with environment to zero.
             if in_failsafe(agent)
                 vel_obs(:, agent) = zeros(size(vel_obs(:, agent)));
                 vel_wall(:, agent) = zeros(size(vel_wall(:, agent)));
@@ -158,7 +199,7 @@ function [vel_command, collisions] = compute_vel_vasarhelyi(self, p_swarm, r_age
         vel_command = vel_command + p_swarm.c_r * randn(3, nb_agents);
     end
 
-    % Bound velocities and acceleration
+    % Bound velocity to max allowed
     if ~isempty(p_swarm.max_v)
         vel_cmd_norm = sqrt(sum((vel_command.^2), 1));
         
@@ -168,13 +209,31 @@ function [vel_command, collisions] = compute_vel_vasarhelyi(self, p_swarm, r_age
                 vel_command(:, idx_to_bound) ./ repmat(vel_cmd_norm(idx_to_bound), 3, 1);
         end
     end
-    if ~isempty(p_swarm.max_a)
+
+    % Bound velocity to max acceleration allowed
+    % For point mass model
+    if ~isempty(p_swarm.max_a)  
         accel_cmd = (vel_command-vel)./dt;
         accel_cmd_norm = sqrt(sum(accel_cmd.^2, 1));
         idx_to_bound = ( accel_cmd_norm > p_swarm.max_a | accel_cmd_norm < - p_swarm.max_a);
         if sum(idx_to_bound) > 0
             vel_command(:, idx_to_bound) = vel(:, idx_to_bound) + ...
                 dt*p_swarm.max_a * accel_cmd(:, idx_to_bound) ./ ...
+                repmat(accel_cmd_norm(idx_to_bound), 3, 1);
+        end
+    % For quadcopter model - iterate and compare with previous command
+    % rather than current velocity.
+    elseif isfield(p_swarm, 'max_a_vasar') && ~isempty(p_swarm.max_a_vasar) 
+        prev_vel_cmd = zeros(size(vel_command));
+        for ii = 1:nb_agents
+            prev_vel_cmd(:,ii) = self.drones(ii).prev_command(2:end);
+        end
+        accel_cmd = (vel_command-prev_vel_cmd)./dt;
+        accel_cmd_norm = sqrt(sum(accel_cmd.^2, 1));
+        idx_to_bound = accel_cmd_norm > p_swarm.max_a_vasar;
+        if sum(idx_to_bound) > 0
+            vel_command(:, idx_to_bound) = prev_vel_cmd(:, idx_to_bound) + ...
+                dt*p_swarm.max_a_vasar * accel_cmd(:, idx_to_bound) ./ ...
                 repmat(accel_cmd_norm(idx_to_bound), 3, 1);
         end
     end
@@ -242,7 +301,8 @@ end
 
 %% Intra-Swarm Interactions
 function [vel_rep, vel_fric, nb_agent_collisions] = compute_intra_swarm_interactions(...
-    pos_self, pos_others, vel_self, vel_others, p_swarm, r_agent, nb_agent_collisions)
+    pos_self, pos_others, vel_self, vel_others, p_swarm, r_agent, r_aware, ...
+    nb_agent_collisions)
 
     % Initialize outputs - repulsion & friction
     vel_rep = zeros(3, 1);
@@ -264,8 +324,9 @@ function [vel_rep, vel_fric, nb_agent_collisions] = compute_intra_swarm_interact
     nb_agent_collisions = nb_agent_collisions + sum(dist < (2 * r_agent));
     
     % Constraint on neighborhood given by the Euclidean distance
-    if ~isempty(neig_list) && isfield(p_swarm, 'r')
-        neig_list = neig_list(dist(neig_list) < p_swarm.r);
+    % (awareness range)
+    if ~isempty(neig_list)
+        neig_list = neig_list(dist(neig_list) <= r_aware);
     end
     
     % Constraint on neighborhood given by the topological distance
@@ -306,7 +367,7 @@ end
 
 %% Drone-Environment Interactions
 function [vel_obs, vel_wall, nb_obs_collisions, min_dist_obs] = compute_drone_environment_interactions(...
-    pos_self, vel_self, p_swarm, r_agent, nb_obs_collisions, min_dist_obs)
+    pos_self, vel_self, p_swarm, r_agent, r_aware_obs, nb_obs_collisions, min_dist_obs)
 
     % Initialize outputs - velocity contributions from obstacles, walls,
     % and goal (only if active_goal on)
@@ -323,7 +384,7 @@ function [vel_obs, vel_wall, nb_obs_collisions, min_dist_obs] = compute_drone_en
                 dist_ab = abs(pos_self(axis) - p_swarm.x_arena(axis, dir));
 
                 %Compute velocity of wall shill agent toward center of the arena
-                v_wall_virtual = unit(:, axis) .* p_swarm.v_shill;
+                v_wall_virtual = unit(:, axis) .* p_swarm.v_shill_arena;
 
                 if dir == 2
                     v_wall_virtual = -v_wall_virtual;
@@ -332,7 +393,8 @@ function [vel_obs, vel_wall, nb_obs_collisions, min_dist_obs] = compute_drone_en
                 %Compute relative velocity (Wall - Agent)
                 vel_ab = sqrt(sum((vel_self - v_wall_virtual).^2));
 
-                v_wall_max = get_v_max(0, dist_ab - p_swarm.r0_shill, p_swarm.a_shill, p_swarm.p_shill);
+                v_wall_max = get_v_max(0, dist_ab - p_swarm.r0_shill_arena, ...
+                    p_swarm.a_shill_arena, p_swarm.p_shill_arena);
 
                 if vel_ab > v_wall_max
                     vel_wall = vel_wall + (vel_ab - v_wall_max) * (v_wall_virtual - vel_self) ./ vel_ab;
@@ -351,6 +413,13 @@ function [vel_obs, vel_wall, nb_obs_collisions, min_dist_obs] = compute_drone_en
 
             % Compute distance agent(a)-obstacle(b)
             dist_ab = sqrt(sum((pos_self - c_obs).^2)) - r_obs;
+            
+            % Skip this obstacle if outside awareness range
+            if dist_ab > r_aware_obs
+                continue;
+            end
+
+            % Check if within collision range
             nb_obs_collisions = nb_obs_collisions + sum(dist_ab < r_agent);
 
             % Set the virtual speed of the obstacle direction out of
@@ -382,6 +451,13 @@ function [vel_obs, vel_wall, nb_obs_collisions, min_dist_obs] = compute_drone_en
 
             % Compute distance agent(a)-obstacle(b)
             dist_ab = sqrt(sum((pos_self(1:2) - c_obs).^2)) - r_obs;
+
+            % Skip this obstacle if outside awareness range
+            if dist_ab > r_aware_obs
+                continue;
+            end
+
+            % Check if within collision range
             nb_obs_collisions = nb_obs_collisions + sum(dist_ab < r_agent);
 
             % Set the virtual speed of the obstacle direction out of
@@ -463,6 +539,11 @@ function [vel_obs, vel_wall, nb_obs_collisions, min_dist_obs] = compute_drone_en
 
             end
 
+            % Skip this obstacle if outside awareness range
+            if dist_ab > r_aware_obs
+                continue;
+            end
+            
             % Check distance for collision
             nb_obs_collisions = nb_obs_collisions + sum(dist_ab < r_agent);
 
@@ -494,7 +575,7 @@ end
 
 %% Drone Repulsion-Only Interactions
 function [vel_rep, nb_agent_collisions] = compute_repulsion_only_interactions(...
-    pos_self, pos_others, p_swarm, r_agent, nb_agent_collisions)
+    pos_self, pos_others, p_swarm, r_agent, r_aware, nb_agent_collisions)
     % From intra-swarm interactions but only the repulsion part
 
     % Initialize output - repulsion only
@@ -509,13 +590,22 @@ function [vel_rep, nb_agent_collisions] = compute_repulsion_only_interactions(..
     p_rel = pos_others - pos_self;
     dist_to_others = sqrt(sum(p_rel.^2, 1));
     
+    % Initialize agents list
+    agent_list = find(dist_to_others ~= 0);
+    
     % Count collisions
     nb_agent_collisions = nb_agent_collisions + sum(dist_to_others < (2 * r_agent));
+
+    % Constraint on agents given by the awareness range limit (Euclidean
+    % distance)
+    if ~isempty(agent_list)
+        agent_list = agent_list(dist_to_others(agent_list) <= r_aware);
+    end
 
     % Compute position unit vectors between agent pairs
     p_rel_u = -p_rel ./ dist_to_others;
 
-    for agent2 = 1:length(dist_to_others)
+    for agent2 = agent_list
 
         % Repulsion only within repulsion radius, otherwise ignore other
         % drone

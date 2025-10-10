@@ -39,9 +39,7 @@ if p_swarm.is_active_spheres
         Xtrasl2 = sphX * map.spheres_r(jj) + map.spheres_north(jj);
         Ytrasl2 = sphY * map.spheres_r(jj) + map.spheres_east(jj);
         Ztrasl2 = sphZ * map.spheres_r(jj) - map.spheres_down(jj);
-        % surf(Ytrasl2, Xtrasl2, Ztrasl2, sphC, 'LineWidth', 0.5);
-        surf(Ytrasl2, Xtrasl2, Ztrasl2, sphC, 'LineWidth', 0.5,...
-            'FaceAlpha', 0.5); % Make semi-transparent
+        surf(Ytrasl2, Xtrasl2, Ztrasl2, sphC, 'LineWidth', 0.5);
         hold on
 
         % Add some text to each obstacle to label them
@@ -55,7 +53,7 @@ if p_swarm.is_active_spheres
 end
 
 % Draw block obstacles if active
-if p_swarm.is_active_blocks
+if isfield(p_swarm, 'is_active_blocks') && p_swarm.is_active_blocks
 
     nb_blocks = size(map.blocks_limits, 2); % Number of blocks
     for i = 1:nb_blocks

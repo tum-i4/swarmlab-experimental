@@ -168,13 +168,17 @@ close all;
 time_history = p_sim.start_time:p_sim.dt:p_sim.end_time;
 pos_ned_history = swarm.get_pos_ned_history();
 pos_ned_history = pos_ned_history(2:end,:);
-vel_ned_history = swarm.get_vel_xyz_history();
+vel_ned_history = swarm.get_vel_ned_history();
+vel_xyz_history = swarm.get_vel_xyz_history();
 accel_history = [zeros(1, p_swarm.nb_agents*3); ...
     diff(vel_ned_history,1)/p_sim.dt];
 out.time_history = time_history;
 out.pos_ned_history = pos_ned_history;
 out.vel_ned_history = vel_ned_history;
+out.vel_xyz_history = vel_xyz_history;
 out.accel_history = accel_history;
+out.p_swarm = p_swarm;
+out.map = map;
 
 % if DEBUG && ~isempty(results_dirname)
 %     %% Plot offline viewer

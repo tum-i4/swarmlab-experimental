@@ -95,7 +95,7 @@ function computational_time = example_ct(SWARM_ALGORITHM, DRONE_TYPE, nb_agents,
 
         % Update video
         if VIDEO
-            swarm_viewer.update(time, swarm, map);
+            swarm_viewer.update(time, swarm, map, p_swarm);
             video.update(time, swarm_viewer.figure_handle);  
         end
 
@@ -107,7 +107,7 @@ function computational_time = example_ct(SWARM_ALGORITHM, DRONE_TYPE, nb_agents,
 
     %% Plot offline viewer
 %     swarm_viewer_off = SwarmViewerOffline(p_sim.dt_video, ...
-%         CENTER_VIEW_ON_SWARM, p_sim.dt, swarm, map);
+%         CENTER_VIEW_ON_SWARM, p_sim.dt, swarm, map, p_swarm);
 
     if DEBUG && ~isempty(debug_dirname)
         %% Analyse swarm state variables
