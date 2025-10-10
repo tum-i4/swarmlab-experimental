@@ -1,4 +1,4 @@
-## SwarmLab derivative project [WIP]
+## SwarmLab Experimental: a SwarmLab-derived project [WIP]
 
 This project is built on the original SwarmLab by Soria et al., found here: https://github.com/lis-epfl/swarmlab ([commit 3574ded](https://github.com/lis-epfl/swarmlab/commit/3574deddd2e4fdcc5696d08f93d6e888f45c8ecc)). Code has been refactored and new code has been added in order to conduct experiments, such as those appearing in the following publication:
 ```
