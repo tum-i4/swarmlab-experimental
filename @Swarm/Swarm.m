@@ -241,6 +241,8 @@ classdef Swarm < handle
                     [vel_commands, collisions] = self.compute_vel_olfati_saber(p_swarm, r_coll, dt);
                 case "vasarhelyi_original"
                     [vel_commands, collisions] = self.compute_vel_vasarhelyi_original(p_swarm, r_coll, dt);
+                case "course_controller"
+                    [vel_commands, collisions] = self.compute_course_controller(p_swarm, r_coll, dt);
                 otherwise
                     error('Requested swarm algorithm has not been added to @Swarm: %s', self.algorithm)
             end
