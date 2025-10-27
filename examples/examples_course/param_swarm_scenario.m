@@ -1,8 +1,8 @@
 % In your main, run this script after the swarm initialization
 
 % Variables to be set
-p_swarm.is_active_migration = false;
-p_swarm.is_active_goal = true;
+p_swarm.is_active_migration = true;
+p_swarm.is_active_goal = false;
 p_swarm.is_active_arena = ACTIVE_ARENA_WALLS;
 p_swarm.is_active_spheres = ACTIVE_OBSTACLES_SPHERES;
 p_swarm.is_active_cyl = ACTIVE_OBSTACLES_CYLINDERS;
@@ -20,7 +20,7 @@ end
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-p_swarm.r = 150;
+p_swarm.r = 30;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Max number of neighbors - Topological distance
@@ -113,7 +113,7 @@ end
 
 % Inter-agent distance
 if ~isfield(p_swarm, 'd_ref')
-    p_swarm.d_ref = 25;
+    p_swarm.d_ref = 15;
 end
 
 % Velocity direction
@@ -147,7 +147,7 @@ p_swarm.max_v = 7;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Initial positions are contained in a cubic area
-p_swarm.P0 = [50,50,-30]'; % [m] position of cube center
+p_swarm.P0 = [50,200,-30]'; % [m] position of cube center
 p_swarm.P = 20; % [m] cube edge size
 
 % Velocities are inizialized in a cubic subspace
