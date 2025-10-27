@@ -6,6 +6,7 @@ With this repository, the intention is to provide snapshots of modifications mad
 
 ### Additions
 * New projects: `examples/examples_course` and `examples/project_scenario`.
+* `examples_course` has been updated as of Oct 2025 to include a new wrapper with default values for a swarm with UAV awareness range limited to 30m. For the course, there is additionally a new placeholder `@Swarm/compute_course_controller.m`; remember to specify which controller should be used when executing a simulation run.
 * Directory `utils` with utility functions, e.g., to calculate separation distances.
 * Directory `wrapper` with wrapper functions that can be used to configure and execute a set of related simulation runs.
 * Tests in `RunSetOfTests.m` in directory `tests`: end-to-end tests; however, comprehensiveness and coverage needs to be improved. Run these using the MATLAB testing framework.
@@ -21,6 +22,8 @@ With this repository, the intention is to provide snapshots of modifications mad
 
 ### Additional Requirements
 * In addition to baseline MATLAB and the Statistics and Machine Learning Toolbox, the Parallel Computing Toolbox is required to run any parallel processes (but this is an extension and is not necessary to run baseline scenarios).
+
+[Original documentation is below]
 
 # SwarmLab
 <p align="center"><img src="https://github.com/lis-epfl/swarmlab/blob/master/docs/images/SwarmLab.svg" alt="Logo" height="200"></p>
