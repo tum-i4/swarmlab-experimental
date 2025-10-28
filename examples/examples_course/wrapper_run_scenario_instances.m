@@ -85,7 +85,7 @@ end
 %%%%% Set defaults if not provided (lists from Python become cell arrays)
 if isempty(fieldnames(sim_config))  % sim_config - all inputs as cell
     sim_config.end_time = {150};
-    sim_config.start_x = {0};
+    sim_config.start_x = {100};
     sim_config.end_x = {500};
 end
 if isempty(fieldnames(sim_fail_config))
