@@ -145,9 +145,9 @@ p_swarm.max_v = 7;
 % Initial position and velocity for the swarm
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+% BUG was HERE
 % Initial positions are contained in a cubic area
-p_swarm.P0 = [450,75,-130]'; % [m] position of cube center
+p_swarm.P0 = [50,200,-30]'; % [m] position of cube center
 p_swarm.P = 20; % [m] cube edge size
 
 % Velocities are inizialized in a cubic subspace
@@ -158,7 +158,12 @@ p_swarm.V = 0; % [m/s]
 p_swarm.seed = 5;
 rng(p_swarm.seed);
 
-p_swarm.Pos0 = p_swarm.P0 + p_swarm.P * (rand(3,p_swarm.nb_agents) - 0.5);
+% ---- spawn with minimum separation ----
+safety_distance=0.25;
+dmin = max(2*p_swarm.r_coll+safety_distance, 1.0);        % safe baseline; tune if needed
+% dmin = max(2*p_swarm.r_coll, 0.5*p_swarm.d_ref);
+
+p_swarm.Pos0 = spawn_with_min_dist_in_cube(p_swarm.P0, p_swarm.P, p_swarm.nb_agents, dmin);
 p_swarm.Vel0 = p_swarm.V0 + p_swarm.V * rand(3,p_swarm.nb_agents);
 
 
@@ -171,3 +176,53 @@ if exist('SWARM_ALGORITHM','var')
     str = "param_";
     run(strcat(str, SWARM_ALGORITHM));
 end
+
+%spawner
+function Pos0 = spawn_with_min_dist_in_cube(P0, P, N, dmin)
+    Pos0 = zeros(3, N);
+
+    maxTriesPerAgent = 10000;
+    maxTriesGlobal   = 100;
+
+    for g = 1:maxTriesGlobal
+        % reset placement for this global attempt
+        Pos0 = zeros(3, N);
+        success = true;
+
+        for i = 1:N
+            placed = false;
+
+            for k = 1:maxTriesPerAgent
+                cand = P0 + P * (rand(3,1) - 0.5);
+
+                if i == 1
+                    Pos0(:, i) = cand;
+                    placed = true;
+                    break
+                end
+
+                d = vecnorm(Pos0(:, 1:i-1) - cand, 2, 1);
+                if all(d >= dmin)
+                    Pos0(:, i) = cand;
+                    placed = true;
+                    break
+                end
+            end
+
+            if ~placed
+                success = false;
+                break  % break out of i-loop, restart globally
+            end
+        end
+
+        if success
+            return  % all agents placed successfully
+        end
+    end
+
+    error("Spawn failed after %d global attempts (per-agent tries=%d). Increase P or reduce dmin.", ...
+          maxTriesGlobal, maxTriesPerAgent);
+end
+
+
+

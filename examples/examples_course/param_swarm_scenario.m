@@ -88,23 +88,32 @@ end
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-if (exist('map','var') && ACTIVE_ENVIRONMENT && p_swarm.is_active_blocks)
+% Add extra cylinder if specified
+if isfield(fail_config, 'obs_n') && ~isempty(fail_config.obs_n)
+    fail_cyl_width = 10;
 
-    % Get properties of blocks
-    [p_swarm.blocks_limits, p_swarm.blocks_faces, p_swarm.blocks_centers, ...
-        p_swarm.blocks_normals] = obstacles.get_block_properties(...
-        map.blocks_north, map.blocks_east, map.blocks_down, ...
-        map.blocks_width_north, map.blocks_width_east, map.blocks_width_down);
-    p_swarm.n_blocks = size(p_swarm.blocks_limits, 2);
+    % --- add to p_swarm.cylinders: 3×N -> [n_row; e_row; width_row] ---
+    % make sure these are row vectors
+    new_cyl_n = fail_config.obs_n(:).';                 % 1×K
+    new_cyl_e = fail_config.obs_e(:).';                 % 1×K
+    new_cyl_w = fail_cyl_width * ones(1, numel(new_cyl_n));  % 1×K
 
-    % Copy this back over to the map variable
-    map.n_blocks = p_swarm.n_blocks;
-    map.blocks_limits = p_swarm.blocks_limits;
-    map.blocks_faces = p_swarm.blocks_faces;
-    map.blocks_centers = p_swarm.blocks_centers;
-    map.blocks_normals = p_swarm.blocks_normals;
+    new_cyl = [new_cyl_n;
+               new_cyl_e;
+               new_cyl_w];                              % 3×K
 
+    if isfield(p_swarm, 'cylinders') && ~isempty(p_swarm.cylinders)
+        % existing 3×N, append new 3×K → 3×(N+K)
+        p_swarm.cylinders = [p_swarm.cylinders, new_cyl];
+    else
+        % initialize
+        p_swarm.cylinders = new_cyl;
+    end
+
+    % update number of cylinders (number of columns)
+    p_swarm.n_cyl = size(p_swarm.cylinders, 2);
 end
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Reference values
@@ -145,7 +154,7 @@ p_swarm.max_v = 7;
 % Initial position and velocity for the swarm
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+% BUG was HERE
 % Initial positions are contained in a cubic area
 p_swarm.P0 = [50,200,-30]'; % [m] position of cube center
 p_swarm.P = 20; % [m] cube edge size
@@ -158,7 +167,12 @@ p_swarm.V = 0; % [m/s]
 p_swarm.seed = 5;
 rng(p_swarm.seed);
 
-p_swarm.Pos0 = p_swarm.P0 + p_swarm.P * (rand(3,p_swarm.nb_agents) - 0.5);
+% ---- spawn with minimum separation ----
+safety_distance=0.25;
+dmin = max(2*p_swarm.r_coll+safety_distance, 1.0);        % safe baseline; tune if needed
+% dmin = max(2*p_swarm.r_coll, 0.5*p_swarm.d_ref);
+
+p_swarm.Pos0 = spawn_with_min_dist_in_cube(p_swarm.P0, p_swarm.P, p_swarm.nb_agents, dmin);
 p_swarm.Vel0 = p_swarm.V0 + p_swarm.V * rand(3,p_swarm.nb_agents);
 
 
@@ -171,3 +185,52 @@ if exist('SWARM_ALGORITHM','var')
     str = "param_";
     run(strcat(str, SWARM_ALGORITHM));
 end
+
+%spawner
+function Pos0 = spawn_with_min_dist_in_cube(P0, P, N, dmin)
+    Pos0 = zeros(3, N);
+
+    maxTriesPerAgent = 10000;
+    maxTriesGlobal   = 100;
+
+    for g = 1:maxTriesGlobal
+        % reset placement for this global attempt
+        Pos0 = zeros(3, N);
+        success = true;
+
+        for i = 1:N
+            placed = false;
+
+            for k = 1:maxTriesPerAgent
+                cand = P0 + P * (rand(3,1) - 0.5);
+
+                if i == 1
+                    Pos0(:, i) = cand;
+                    placed = true;
+                    break
+                end
+
+                d = vecnorm(Pos0(:, 1:i-1) - cand, 2, 1);
+                if all(d >= dmin)
+                    Pos0(:, i) = cand;
+                    placed = true;
+                    break
+                end
+            end
+
+            if ~placed
+                success = false;
+                break  % break out of i-loop, restart globally
+            end
+        end
+
+        if success
+            return  % all agents placed successfully
+        end
+    end
+
+    error("Spawn failed after %d global attempts (per-agent tries=%d). Increase P or reduce dmin.", ...
+          maxTriesGlobal, maxTriesPerAgent);
+end
+
+
