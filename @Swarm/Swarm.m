@@ -35,8 +35,6 @@ classdef Swarm < handle
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function add_drone(self, drone_type, p_drone, p_battery, p_sim, p_physics, map, p_swarm)
-            % Varargin is used for backwards-compatibility with original
-            % code.
             
             % Track the number of drones in the swarm
             self.nb_agents = self.nb_agents + 1;
@@ -241,8 +239,6 @@ classdef Swarm < handle
                     [vel_commands, collisions] = self.compute_vel_olfati_saber(p_swarm, r_coll, dt);
                 case "vasarhelyi_original"
                     [vel_commands, collisions] = self.compute_vel_vasarhelyi_original(p_swarm, r_coll, dt);
-                case "course_controller"
-                    [vel_commands, collisions] = self.compute_course_controller(p_swarm, r_coll, dt);
                 otherwise
                     error('Requested swarm algorithm has not been added to @Swarm: %s', self.algorithm)
             end

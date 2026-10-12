@@ -266,7 +266,7 @@ end
 %% Active Goal Destination Influence
 function [vel_goal_obs] = compute_active_goal_influence(...
     pos_self, vel_self, p_swarm, x_goal)
-    % Run this is Active Goal is specified; adds a pseudo-obstacle at the
+    % Run this if Active Goal is specified; adds a pseudo-obstacle at the
     % goal to prevent agents from converging and crashing together.
     % 
     % x_goal is a 3x1 vector with NED coordinates [m]

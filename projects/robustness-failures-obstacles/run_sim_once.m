@@ -1,155 +1,46 @@
 function [pos_ned_history, vel_ned_history, time_history, ...
-    p_swarm, map, collision_history, in_sim_history] = run_scenario_instance( ...
+    p_swarm, map, collision_history, in_sim_history] = run_sim_once(...
     end_time, end_x, ...
-    swarm_config, fail_config, ...
+    swarm_config, map, agent_starts, p_vasar, fail_config, ...
     results_dir, flags)
-% RUN_SCENARIO_INSTANCE Execute a single UAV swarm simulation scenario
-%
-% This function runs a single instance of a UAV swarm simulation with specified
-% parameters, including swarm algorithm, environment obstacles, and optional
-% agent failures. The simulation uses quadcopter dynamics and collision detection.
-%
-% SYNTAX:
-%   [pos_ned_history, vel_ned_history, time_history, p_swarm, map, ...
-%    collision_history, in_sim_history] = run_scenario_instance(end_time, ...
-%    end_x, swarm_config, fail_config, results_dir, flags)
-%
-% INPUTS:
-%   end_time        - (double) Maximum simulation duration [s]
-%
-%   end_x           - (double) X-coordinate [m] defining end of scenario
-%                     Used with flags.dynamic_end to stop simulation early
-%
-%   swarm_config    - (struct) Swarm configuration
-%                     Fields:
-%                       .num_agents  - Number of agents in swarm
-%                       .swarm_algo  - Algorithm: "vasarhelyi", "vasarhelyi_original",
-%                                      "olfati_saber", or "course_controller"
-%
-%   fail_config     - (struct) Failure scenario configuration
-%                     Fields:
-%                       .failure_option - Failure type: 1 (power cutoff) or
-%                                         2 (velocity change)
-%                       .fail_agent_num - Vector of agent indices to fail
-%                       .fail_time      - Vector of failure times [s]
-%                       .obs_n          - Obstacle N-coordinate [m]
-%                       .obs_e          - Obstacle E-coordinate [m]
-%                     For failure_option = 2, also include:
-%                       .fail_v_n       - New velocity north component [m/s]
-%                       .fail_v_e       - New velocity east component [m/s]
-%                       .fail_v_d       - New velocity down component [m/s]
-%
-%   results_dir     - (string) Directory path for saving results
-%                     If empty, results are not saved to individual files
-%
-%   flags           - (struct) Simulation control flags
-%                     Fields:
-%                       .save           - Save workspace variables
-%                       .viz            - Show offline state plots
-%                       .viz_video      - Show offline animation
-%                       .run_parallel   - Flag indicating parallel execution
-%                       .dynamic_end    - Stop early if agents finish/crash
-%
-% OUTPUTS:
-%   pos_ned_history      - (matrix) [N x 3*num_agents] Position history in NED frame
-%                          Format: [n1,e1,d1,n2,e2,d2,...] for each timestep
-%
-%   vel_ned_history      - (matrix) [N x 3*num_agents] Velocity history in NED frame
-%                          Format: [vn1,ve1,vd1,vn2,ve2,vd2,...] for each timestep
-%
-%   time_history         - (vector) [N x 1] Time vector [s]
-%
-%   p_swarm              - (struct) Final swarm parameters used in simulation
-%
-%   map                  - (struct) Map/environment configuration used
-%
-%   collision_history    - (logical matrix) [N x num_agents] Collision status
-%                          True when agent is in collision
-%
-%   in_sim_history       - (logical matrix) [N x num_agents] Simulation status
-%                          False when agent removed from simulation
-%
-% SIMULATION ENVIRONMENT:
-%   The simulation includes:
-%   - Arena boundaries (geofence): X=[0,1000]m, Y=[0,500]m, Z=[-75,-10]m
-%   - Cylindrical obstacles (buildings) at configurable locations
-%   - Spherical obstacles at configurable locations
-%   - Initial swarm position: centered at [50,200,-30]m with ±10m randomization
-%   - Migration direction: positive X (North)
-%   - Default reference speed: 6 m/s
-%   - Default collision radius: 0.5 m
-%   - Default awareness radius: 30 m
-%
-% SIMULATION LOOP:
-%   For each timestep (dt = 0.01s):
-%     1. Check for scheduled failures and apply if needed
-%     2. Compute velocity commands from swarm algorithm (every 0.10s)
-%     3. Update agent states using quadcopter dynamics
-%     4. Check for collisions (agent-agent, agent-obstacle, agent-wall)
-%     5. Remove colliding agents from simulation
-%     6. Check dynamic end conditions if enabled
-%
-% FAILURE MODES:
-%   Type 1 (Power cutoff): Sets motor max angular velocity to zero
-%   Type 2 (Velocity change): Forces agent to new velocity direction/magnitude
-%
-% COLLISION HANDLING:
-%   When collision detected:
-%   - Agent is frozen in place (velocity set to zero)
-%   - Agent removed from simulation (state_in_sim = false)
-%   - Agent excluded from future swarm calculations
-%
-% OUTPUT FILES (if flags.save = true and results_dir provided):
-%   - state_var.mat: Contains all simulation histories and parameters
-%   - Offline plots of position, velocity, and acceleration (if flags.viz = true)
-%
-% PARAMETER FILES LOADED:
-%   - param_sim_scenario.m     : Simulation timesteps and durations
-%   - param_battery.m          : Battery model parameters
-%   - param_physics.m          : Physical constants
-%   - param_drone.m            : Quadcopter parameters
-%   - param_map_scenario.m     : Environment/obstacle configuration
-%   - param_swarm_scenario.m   : Swarm behavioral parameters
-%   - param_<algorithm>.m      : Algorithm-specific parameters
-%
-% NOTES:
-%   - Simulation timestep (dt) is fixed at 0.01s for quadcopter dynamics
-%   - Command update rate is 0.10s (10 Hz)
-%   - Random seed is set to 5 for reproducibility
-%   - Visualization and saving are disabled when run_parallel = true
-%
+% Executes the complete simulation one time.
 
-%% Specify simulation options and set up workspace 
+%%%%% Specify simulation options
 
 % Simulation options
-% DRONE_TYPE = "point_mass";
-DRONE_TYPE = "quadcopter"; % Must set p_sim.dt to 0.01
 
-% Swarm algorithm
-if isempty(swarm_config.swarm_algo)
-    SWARM_ALGORITHM = "vasarhelyi";
-else
-    SWARM_ALGORITHM = swarm_config.swarm_algo;
-end
+% DRONE_TYPE = "point_mass"; % swarming mode supports only quadcopter and point_mass
+DRONE_TYPE = "quadcopter";
+SWARM_ALGORITHM = "vasarhelyi";
 
-% Set number of drones in swarm
-p_swarm.nb_agents = swarm_config.num_agents;
+% Set flags, save
+flags.DRONE_TYPE = DRONE_TYPE;
 
 % Tolerance for checking failure time (consider time step size of 0.01)
 tol_time = 0.001;
 
-% Flags to activate obstacle types
-ACTIVE_ENVIRONMENT = true; % this is used to set up obstacle parameters
-ACTIVE_OBSTACLES_CYLINDERS = true;
-ACTIVE_OBSTACLES_SPHERES = true;
-ACTIVE_ARENA_WALLS = true;
-ACTIVE_OBSTACLES_BLOCKS = false;
+% Set flags for obstacle types depending on map settings
+if map.n_cyl>0
+    flags.ACTIVE_OBSTACLES_CYLINDERS = true;
+else
+    flags.ACTIVE_OBSTACLES_CYLINDERS = false;
+end
+if map.n_spheres>0
+    flags.ACTIVE_OBSTACLES_SPHERES = true; 
+else
+    flags.ACTIVE_OBSTACLES_SPHERES = false;
+end
 
-% Additional options
-VIDEO = false;
+% Flags to activate obstacle types (used in param files)
+ACTIVE_ENVIRONMENT = true; % activates all environment configs
+ACTIVE_OBSTACLES_CYLINDERS = flags.ACTIVE_OBSTACLES_CYLINDERS;
+ACTIVE_OBSTACLES_SPHERES = flags.ACTIVE_OBSTACLES_SPHERES;
+ACTIVE_ARENA_WALLS = flags.ACTIVE_ARENA_WALLS;
+
 CENTER_VIEW_ON_SWARM = false; % Only used for video
 
-%% Input checks
+
+%%%%% Input checks
 
 % Input check: sizes of failure agent and fail time vectors should be same
 if ~isequal(length(fail_config.fail_agent_num), ...
@@ -190,63 +81,113 @@ else
     num_unique_agent_fail = length(unique(fail_config.fail_agent_num));
 end
 
-%% Call parameter files
-end_time = round(end_time, 2);  % to handle machine error
-p_sim.end_time = end_time;
-run('param_sim_scenario');
-run('param_battery');
-run('param_physics');
-run('param_drone'); 
-run('param_map_scenario');
-run('param_swarm_scenario');
 
-% Add extra cylinder if specified
-if isfield(fail_config, 'obs_n') && ~isempty(fail_config.obs_n)
-    fail_cyl_width = 10;
-    map.buildings_width = [map.buildings_width; fail_cyl_width];
-    map.buildings_east = [map.buildings_east; fail_config.obs_e]; % Corresponds to Y
-    map.buildings_north = [map.buildings_north; fail_config.obs_n]; % Corresponds to X
+%%%%% Generate parameter variables
+end_time = round(end_time, 2);  % to handle machine error
+p_sim = generate_p_sim(end_time);
+run('param_battery');  % use default script
+run('param_physics');  % use default script
+run('param_drone');    % must use default script - it calls other scripts
+p_swarm = generate_p_swarm(flags, swarm_config, p_vasar, map, agent_starts);
+run('param_vasarhelyi')
+
+
+%%%%% Adjust Vasarhelyi settings
+
+if ~isempty(p_vasar)
+
+    % Repulsion - only affects agent-agent interactions
+
+    % Repulsion range
+    p_swarm.r0_rep = p_swarm.d_ref; % radius of repulsion set in swarm config
+    % Repulsion gain
+    p_swarm.p_rep = p_vasar.p_rep;
+
+    % Friction
+
+    % Stopping point offset of alignment
+    p_swarm.r0_fric = p_vasar.r0_fric;
+    % Coefficient of velocity alignment
+    p_swarm.C_fric = p_vasar.C_fric;
+    % Velocity slack of alignement
+    p_swarm.v_fric = p_vasar.v_fric;
+    % Gain of braking curve
+    p_swarm.p_fric = p_vasar.p_fric;
+    % Acceleration of braking curve
+    p_swarm.a_fric = p_vasar.a_fric;
+
+    % Obstacles and wall parameters
+
+    % Stopping point offset of walls
+    p_swarm.r0_shill = p_vasar.r0_shill;
+    % Velocity of virtual shill agents
+    p_swarm.v_shill = p_vasar.v_shill;
+    % Gain of bracking curve for walls
+    p_swarm.p_shill = p_vasar.p_shill;
+    % Acceleration of braking curve for walls
+    p_swarm.a_shill = p_vasar.a_shill;
+
+    % New parameters
+    if isfield(p_vasar, 'r0_shill_arena')
+        p_swarm.r0_shill_arena = p_vasar.r0_shill_arena;
+    else
+        p_swarm.r0_shill_arena = p_swarm.r0_shill;
+    end
+    if isfield(p_vasar, 'v_shill_arena')
+        p_swarm.v_shill_arena = p_vasar.v_shill_arena;
+    else
+        p_swarm.v_shill_arena = p_swarm.v_shill;
+    end
+    if isfield(p_vasar, 'p_shill_arena')
+        p_swarm.p_shill_arena = p_vasar.p_shill_arena;
+    else
+        p_swarm.p_shill_arena = p_swarm.p_shill;
+    end
+    if isfield(p_vasar, 'a_shill_arena')
+        p_swarm.a_shill_arena = p_vasar.a_shill_arena;
+    else 
+        p_swarm.a_shill_arena = p_swarm.a_shill;
+    end
 end
 
-% Check config parameters and set defaults if needed
+
+%%%%% Check config parameters and set defaults if needed
 [p_sim, p_battery, p_physics, p_drone, map, p_swarm] = ...
     check_params(p_sim, p_battery, p_physics, p_drone, map, p_swarm);
 
-%% Init Swarm Object, Wind, Viewer, and other variables
+
+%%%%% Init Swarm Object, Wind, Viewer, and other variables
 
 % Init swarm and set positions
 swarm = Swarm();
 swarm.algorithm = SWARM_ALGORITHM;
+
 for i = 1 : p_swarm.nb_agents
     swarm.add_drone(DRONE_TYPE, p_drone, p_battery, p_sim, p_physics,...
-         map, p_swarm);
+        map, p_swarm);
+
+    % Experiment 0 - no cooperation
+    if isfield(flags, 'cooperating') && ~flags.cooperating
+        swarm.drones(i).swarm_in_calcs = false;
+    end
+
 end
 swarm.set_pos(p_swarm.Pos0);
 
 % Init wind
 wind = zeros(6,1); % steady wind (1:3), wind gusts (3:6)
 
-% If a video should be saved
-if VIDEO    
-    % Init video
-    video_filename = strcat(erase(mfilename, "example_"), '_', date_string);
-    video_filepath = strcat(results_dir, '/', video_filename);
-    video = VideoWriterWithRate(video_filepath, p_sim.dt_video);
-    
-    % Init viewer (this is what will be recorded for video)
-    % Check if p_sim.dt_plot and p_sim.dt_video are appropriate
-    swarm_viewer = SwarmViewer(p_sim.dt_plot, CENTER_VIEW_ON_SWARM);
-    swarm_viewer.viewer_type = 'agent';
-    states_handle = [];
-end
 
-%% Main simulation loop
-disp('Type CTRL-C to exit');
+%%%%% Main simulation loop
 
-% Initialize counter for command updates
+% Precalculate indices of non-failing agents
+logi_no_fail_agent = ~ismember((1:swarm_config.num_agents), fail_config.fail_agent_num);
+
+% Initialize counter for less-frequent command updates
 command_dt = p_sim.dt_command;  % [sec] command update period
 last_command_time = -command_dt;
 
+% Sim Loop
 for time = p_sim.start_time:p_sim.dt:p_sim.end_time
 
     % Apply failure at failure time
@@ -258,24 +199,22 @@ for time = p_sim.start_time:p_sim.dt:p_sim.end_time
         last_command_time = time;
     end
 
-    % Update swarm states and plot the drones
+    % Update swarm states - must be every time step for correct PID calcs
     swarm.update_state(wind, time);
 
-    % Check for collisions and update agent collision and in_sim states if
+    % Check for collisions and update agent collision and in_sim states if 
     % collisions occur.
-    swarm = collision_manager(swarm, p_swarm, map);
-
-    % Update video
-    if VIDEO
-        swarm_viewer.update(time, swarm, map, p_swarm);
-        video.update(time, swarm_viewer.figure_handle);  
-    end
+    swarm = collision_manager(swarm, p_swarm, map, p_drone);
 
     % End sim if all agents cross end_x OR all agents are out of sim
     if flags.dynamic_end
         % Current x positions of all agents
         current_x = [swarm.drones.pos_ned];
         current_x = current_x(1, :);
+        % current_x = current_x(1, logi_no_fail_agent);  % use if only focusing on non-failing agents
+        % if ~isequal(length(current_x), swarm_config.num_agents-num_unique_agent_fail)  % Quick verify
+        %     error('Length of x-positions does not match number of agents.')
+        % end
 
         % Current in_sim states of all agents
         current_in_sim = [swarm.drones.state_in_sim];
@@ -291,13 +230,8 @@ for time = p_sim.start_time:p_sim.dt:p_sim.end_time
 
 end
 
-% Close video
-if VIDEO
-    video.close()
-end
 
-
-%% Analyse states and save
+%%%%% Analyse states and save
 
 % time_history = p_sim.start_time:p_sim.dt:p_sim.end_time;
 time_history = p_sim.start_time:p_sim.dt:time;
@@ -311,39 +245,163 @@ swarm.collisions_history = collision_history;
 in_sim_history = swarm.get_in_sim_history();
 
 % Save workspace
-if ~flags.run_parallel && flags.save  % cannot save if running in parallel
+if ~flags.run_parallel && flags.save
     workspace_path = strcat(results_dir,'/state_var');
     save(workspace_path,'time_history','pos_ned_history','vel_ned_history', ...
         'accel_history', 'collision_history', 'in_sim_history', ...
         'p_sim', 'p_swarm', 'map');
 end
 
-%% Run visualization and postprocessing
+
+%%%%% Run visualization and postprocessing
 if ~flags.run_parallel && flags.viz_video
-    % Runs a video but does not save anything.
+
+    % This is a cool visualization tool of theirs, but I don't think it saves anything
     SwarmViewerOffline(p_sim.dt_video, ...
         CENTER_VIEW_ON_SWARM, p_sim.dt, swarm, map, p_swarm);
+
 end
 
-%% Run their postprocessing (minus saving workspace variables)
 if ~flags.run_parallel && flags.viz
-    % Analyse swarm state variables
-
-    fontsize = 12;
 
     % Plot state variables
+    fontsize = 12;
     agents_color = swarm.get_colors();
     lines_color = [];
 
+    % Save if flagged
+    if flags.save
+        plot_results_dir = results_dir;
+    else
+        plot_results_dir = [];
+    end
     plot_state_offline(time_history', pos_ned_history, vel_ned_history, ...
         accel_history, agents_color, p_swarm, map, fontsize, lines_color, ...
-        results_dir);
+        plot_results_dir);
 
 end
 
-end
+end % end main function
+
 
 %% Local functions
+
+
+% p_sim
+function p_sim = generate_p_sim(end_time)
+
+p_sim.dt = 0.01; % simulation dt [s]  % 0.01 required for quadcopter model
+p_sim.dt_command = 0.1; % [s] refresh period for swarm control calculation
+p_sim.dt_plot = 0.5; % period of plots update [s]
+p_sim.dt_video = 0.1; % period of video update [s]
+p_sim.start_time = 0; % [s]
+p_sim.end_time = end_time; % [s]
+
+end
+
+
+% p_swarm - IMPORTANT for specifying swarm's goal behavior
+function p_swarm = generate_p_swarm(flags, swarm_config, p_vasar, map, starts)
+
+% Variables to be set
+p_swarm.is_active_migration = true;
+p_swarm.is_active_goal = false;
+p_swarm.is_active_arena = flags.ACTIVE_ARENA_WALLS;
+p_swarm.is_active_spheres = flags.ACTIVE_OBSTACLES_SPHERES;
+p_swarm.is_active_cyl = flags.ACTIVE_OBSTACLES_CYLINDERS;
+
+% Set number of drones in swarm
+p_swarm.nb_agents = swarm_config.num_agents; 
+
+% Max radius of influence - neighborhood [m]
+p_swarm.r = swarm_config.r;
+
+% Max topological distance number of neighbors
+p_swarm.max_neig = 10;
+
+% Radius of collision
+p_swarm.r_coll = 1;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Arena parameters - Cubic arena
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+p_swarm.x_arena = [map.arena_north; map.arena_east; map.arena_down];
+p_swarm.center_arena = sum(p_swarm.x_arena, 2) / 2;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Spheric obstacles parameters
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+p_swarm.spheres = [map.spheres_north; map.spheres_east; ...
+    map.spheres_down; map.spheres_r];
+
+p_swarm.n_spheres = map.n_spheres;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Cylindric obstacles parameters
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+cylinder_radius = map.buildings_width ./ 2;
+
+p_swarm.cylinders = [
+    map.buildings_north; % x_obstacle
+    map.buildings_east; % y_obstacle
+    cylinder_radius]; % r_obstacle
+p_swarm.n_cyl = map.n_cyl;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Reference values
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Inter-agent distance
+p_swarm.d_ref = p_vasar.d_ref;
+
+% Velocity direction
+p_swarm.u_ref = [1 0 0]';
+
+% Speed
+p_swarm.v_ref = swarm_config.v_ref;
+
+% Goal location
+p_swarm.x_goal = [350, 100, -50]';
+% p_swarm.x_goal = [950, 100, -50]';  % To test out steady-state interactions
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Velocity and acceleration bounds for the agents
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+if flags.DRONE_TYPE == "fixed_wing" || flags.DRONE_TYPE == "quadcopter"
+    p_swarm.max_a = []; % leave empty if you use a real drone model
+    p_swarm.max_a_vasar = 30; % bounds how much vasarhelyi commands can change
+    % p_swarm.max_a_vasar = []; % no bound for possible changes in commands
+elseif flags.DRONE_TYPE == "point_mass"
+    p_swarm.max_a = 10;
+else
+	error('DRONE_TYPE is incorrectly specified.')
+end
+p_swarm.max_v = 15;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Initial position and velocity for the swarm
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Use pre-defined initial positions so that results are reproducible
+p_swarm.P0 = [-(starts.start_buffer + (starts.Lx/2)), ...
+    (starts.Ly/2), -(starts.Lz/2)]';
+p_swarm.Pos0 = p_swarm.P0 + starts.agent_positions';
+
+% Assume starting velocity is zero
+p_swarm.Vel0 = zeros(size(p_swarm.Pos0));
+
+end
+
 
 % Manage failure executions
 function swarm = failure_manager(swarm, p_drone, time, ...
@@ -366,18 +424,28 @@ if any(fail_now)
 
     % Iterate through agents that should fail at this time step
     for i = 1:length(vect_fail_now)
-
+        
         switch flag_failure_option
 
+            case 0
+                % Failure mode: stop flight and hold position
+                swarm.drones(vect_fail_now(i)).state_failsafe = true;
+                swarm.drones(vect_fail_now(i)).swarm_control = 'velocity';
+                swarm.drones(vect_fail_now(i)).u_ref = [0; 0; 0];
+                swarm.drones(vect_fail_now(i)).v_ref = 0;
+
             case 1
-                % Failure mode: motors max angular velocity set to 0
+                % Failure mode: max angular velocity for all motors reduced
+                vect_fail_now_power = fail_config.fail_power(fail_now);  % get fail power
+                vect_fail_now_power = vect_fail_now_power(i);
 
                 % Apply change in max angular velocity
-                swarm.drones(vect_fail_now(i)).p_drone.k_omega = 0;
+                swarm.drones(vect_fail_now(i)).p_drone.k_omega = ...
+                    p_drone.k_omega * vect_fail_now_power;
 
             case 2
                 % Failure mode: change in drone's direction and speed
-
+                
                 % Extract vector components of new direction
                 new_v_n = fail_config.fail_v_n(fail_now);
                 new_v_n = new_v_n(i);
@@ -402,14 +470,19 @@ if any(fail_now)
 
         end
 
+        if ~fail_config.fail_in_swarm
+            swarm.drones(vect_fail_now(i)).swarm_in_calcs = false;
+        end
+
     end
 
 end
 
 end
 
+
 % Manage collisions that occur during simulation
-function swarm = collision_manager(swarm, p_swarm, map)
+function swarm = collision_manager(swarm, p_swarm, map, p_drone)
 % If collision occurs between agents or between an agent and the
 % environment (obstacle or arena wall), the agent should freeze and be
 % removed from the simulation.
@@ -480,6 +553,8 @@ function swarm = collision_manager(swarm, p_swarm, map)
             swarm.drones(i).swarm_control = 'velocity';
             swarm.drones(i).u_ref = [0; 0; 0];
             swarm.drones(i).v_ref = 0;
+            % % Reset k_omega in case it was falling from a collision
+            % swarm.drones(i).p_drone.k_omega = p_drone.k_omega;
 
         else
 
@@ -496,4 +571,3 @@ function swarm = collision_manager(swarm, p_swarm, map)
     end
 
 end
-

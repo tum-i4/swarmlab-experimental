@@ -1,16 +1,17 @@
-## SwarmLab Experimental: a SwarmLab-derived project [WIP]
+## SwarmLab Experimental: a SwarmLab-derived project
 
 This project is built on the original SwarmLab by Soria et al., found here: https://github.com/lis-epfl/swarmlab ([commit 3574ded](https://github.com/lis-epfl/swarmlab/commit/3574deddd2e4fdcc5696d08f93d6e888f45c8ecc)). Code has been refactored and new code has been added in order to conduct experiments.
 
 With this repository, the intention is to provide snapshots of modifications made to the original SwarmLab as time goes on. A non-exhaustive summary is provided below.
 
+### Major updates
+This release reflects a piece of the replication package accompanying the publication "How to Break a Swarm: Search-based Robustness Testing of Decentralized UAV Swarms," accepted for publication at the 2026 International Symposium on Software Reliability Engineering (ISSRE). Please consider citing us: https://doi.org/10.6084/m9.figshare.30934004
+
 ### Additions
-* New projects: `examples/examples_course` and `examples/project_scenario`.
-* `examples_course` has been updated as of Oct 2025 to include a new wrapper with default values for a swarm with UAV awareness range limited to 30m. For the course, there is additionally a new placeholder `@Swarm/compute_course_controller.m`; remember to specify which controller should be used when executing a simulation run.
 * Directory `utils` with utility functions, e.g., to calculate separation distances.
 * Directory `wrapper` with wrapper functions that can be used to configure and execute a set of related simulation runs.
 * Tests in `RunSetOfTests.m` in directory `tests`: end-to-end tests; however, comprehensiveness and coverage needs to be improved. Run these using the MATLAB testing framework.
-* New obstacle type: rectangular "boxes" as obstacles; NOTE that this is just the result of some brainstorming and many assumptions were made about what block properties a UAV can "perceive", `@Swarm/compute_vel_vasarhelyi.m` should be examined for details.
+* New obstacle type: rectangular "boxes" as obstacles; NOTE that this is just the result of some brainstorming and many assumptions were made about what block properties a UAV can "perceive", `@Swarm/compute_vel_vasarhelyi.m` should be examined for details. In general we do not recommend using this obstacle type, but check it out if you are interested.
 
 ### Changes
 * Refactored: `@Swarm/compute_vel_vasarhelyi.m` such that many calculations have been organized into subfunctions.

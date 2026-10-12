@@ -3,8 +3,8 @@ function [coll_result, coll_obs, coll_drones, coll_walls] = collision_check(...
 % Function checks for collisions based on UAV position information and
 % scenario configuration.
 % If a collision occurs, only the first time the
-% collision is detected should be used; since collision effects are not
-% % simulated, data after the collision should not be considered valid.
+% collision is detected should be used since collision effects are not
+% simulated.
 % If a collision does not occur, the closest distance is recorded instead.
 %
 % Inputs:

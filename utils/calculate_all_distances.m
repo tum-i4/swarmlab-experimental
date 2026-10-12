@@ -14,16 +14,19 @@ function [agent_agent, agent_wall, agent_cyl, agent_sph] = ...
 %     .dist - [time x num_agents x num_agents] distances between agents
 %             agent_agent.dist(t,j,i) = distance from agent i to agent j at time t  
 %     .coll - [time x num_agents] logical, true if agent has agent-agent collision
-%     .min - [num_agents x num_agents] minimum distance each agent achieved to each other agent
+%     .min - [num_agents x num_agents] minimum distance each agent reached to each other agent
+%
 %   agent_wall - Agent-wall interactions
 %     .dist - [time x 6 x num_agents] distances to 6 arena walls
 %             Walls: 1=North_min, 2=North_max, 3=East_min, 4=East_max, 5=Down_min, 6=Down_max
 %     .coll - [time x num_agents] logical, true if agent has wall collision
 %     .min - [num_agents x 6] minimum distance each agent achieved to each wall
+%
 %   agent_cyl - Agent-cylinder interactions  
 %     .dist - [time x num_cylinders x num_agents] distances to cylinder surfaces
 %     .coll - [time x num_agents] logical, true if agent has cylinder collision
 %     .min - [num_agents x num_cylinders] minimum distance each agent achieved to each cylinder
+%
 %   agent_sph - Agent-sphere interactions
 %     .dist - [time x num_spheres x num_agents] distances to sphere surfaces  
 %     .coll - [time x num_agents] logical, true if agent has sphere collision
@@ -92,12 +95,18 @@ for t = 1:num_timesteps
         % 2. Agent-to-wall distances
         % Wall indices: 1=North_min, 2=North_max, 3=East_min, 4=East_max, 
         % 5=Down_min, 6=Down_max
-        dist_agent_wall(t, 1, i) = abs(pos_t(i, 1) - map.arena_north(1));  % North min wall
-        dist_agent_wall(t, 2, i) = abs(pos_t(i, 1) - map.arena_north(2));  % North max wall
-        dist_agent_wall(t, 3, i) = abs(pos_t(i, 2) - map.arena_east(1));    % East min wall
-        dist_agent_wall(t, 4, i) = abs(pos_t(i, 2) - map.arena_east(2));    % East max wall
-        dist_agent_wall(t, 5, i) = abs(pos_t(i, 3) - map.arena_down(1));    % Down min wall
-        dist_agent_wall(t, 6, i) = abs(pos_t(i, 3) - map.arena_down(2));    % Down max wall
+        % dist_agent_wall(t, 1, i) = abs(pos_t(i, 1) - map.arena_north(1));  % North min wall
+        % dist_agent_wall(t, 2, i) = abs(pos_t(i, 1) - map.arena_north(2));  % North max wall
+        % dist_agent_wall(t, 3, i) = abs(pos_t(i, 2) - map.arena_east(1));    % East min wall
+        % dist_agent_wall(t, 4, i) = abs(pos_t(i, 2) - map.arena_east(2));    % East max wall
+        % dist_agent_wall(t, 5, i) = abs(pos_t(i, 3) - map.arena_down(1));    % Down min wall
+        % dist_agent_wall(t, 6, i) = abs(pos_t(i, 3) - map.arena_down(2));    % Down max wall
+        dist_agent_wall(t, 1, i) = max(0, pos_t(i, 1) - map.arena_north(1));  % North min wall
+        dist_agent_wall(t, 2, i) = max(0, map.arena_north(2) - pos_t(i, 1));  % North max wall
+        dist_agent_wall(t, 3, i) = max(0, pos_t(i, 2) - map.arena_east(1));    % East min wall
+        dist_agent_wall(t, 4, i) = max(0, map.arena_east(2) - pos_t(i, 2));    % East max wall
+        dist_agent_wall(t, 5, i) = max(0, pos_t(i, 3) - map.arena_down(1));    % Down min wall
+        dist_agent_wall(t, 6, i) = max(0, map.arena_down(2) - pos_t(i, 3));    % Down max wall
     
         % 3. Agent to cylindrical obstacles distances
         if num_cylinders > 0
